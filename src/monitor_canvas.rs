@@ -103,7 +103,7 @@ fn draw_monitor(frame: &mut Frame, rect: Rectangle, output: &OutputInfo, is_sele
 
     frame.fill_text(Text {
         content: output.name.clone(),
-        position: Point::new(cx, cy - 10.0),
+        position: Point::new(cx, cy - 16.0),
         color: Color::WHITE,
         size: 14.0.into(),
         align_x: iced::alignment::Horizontal::Center.into(),
@@ -111,12 +111,24 @@ fn draw_monitor(frame: &mut Frame, rect: Rectangle, output: &OutputInfo, is_sele
         ..Text::default()
     });
 
+    if !output.model.is_empty() {
+        frame.fill_text(Text {
+            content: output.model.clone(),
+            position: Point::new(cx, cy),
+            color: Color::from_rgb(0.8, 0.8, 0.8),
+            size: 11.0.into(),
+            align_x: iced::alignment::Horizontal::Center.into(),
+            align_y: iced::alignment::Vertical::Center,
+            ..Text::default()
+        });
+    }
+
     frame.fill_text(Text {
         content: format!(
             "{}x{}",
             output.current_mode.width, output.current_mode.height
         ),
-        position: Point::new(cx, cy + 10.0),
+        position: Point::new(cx, cy + 16.0),
         color: Color::from_rgb(0.8, 0.8, 0.8),
         size: 11.0.into(),
         align_x: iced::alignment::Horizontal::Center.into(),
