@@ -339,6 +339,12 @@ impl App {
             ))
             .size(16);
 
+            let native = text(match output.native_mode() {
+                Some(m) => format!("Native: {}x{} ({})", m.width, m.height, m.aspect_ratio()),
+                None => "Native: unknown".to_string(),
+            })
+            .size(13);
+
             let modes: Vec<Mode> = if self.mirror_mode {
                 common_modes(&self.outputs)
             } else {
@@ -357,7 +363,7 @@ impl App {
             .spacing(10)
             .align_y(iced::Alignment::Center);
 
-            column![info, resolution_row, text(&self.status).size(13)]
+            column![info, native, resolution_row, text(&self.status).size(13)]
                 .spacing(10)
                 .align_x(iced::Alignment::Center)
                 .into()

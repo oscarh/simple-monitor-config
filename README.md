@@ -8,7 +8,7 @@ A simple GUI tool for managing monitor layout in [Sway](https://swaywm.org/).
 - Live reordering while dragging (monitors swap when dragged past each other)
 - Edge and alignment snapping (top, center, bottom)
 - Free positioning: side-by-side, above, or below
-- Resolution selection per monitor
+- Resolution selection per monitor, showing aspect ratios and the native resolution
 - Extend / Mirror mode toggle
 - Auto-detects monitor connect/disconnect via Sway IPC events
 

@@ -31,15 +31,17 @@ pub fn get_outputs() -> Result<Vec<OutputInfo>, String> {
                 y: o.rect.y,
                 width: o.rect.width,
                 height: o.rect.height,
-                modes: o
-                    .modes
-                    .into_iter()
-                    .map(|m| Mode {
-                        width: m.width,
-                        height: m.height,
-                        refresh: m.refresh,
-                    })
-                    .collect(),
+                modes: dedup_modes(
+                    o.modes
+                        .into_iter()
+                        .map(|m| Mode {
+                            width: m.width,
+                            height: m.height,
+                            refresh: m.refresh,
+                        })
+                        .collect(),
+                    &current_mode,
+                ),
                 current_mode,
                 scale: o.scale.unwrap_or(1.0),
                 active: o.active,
@@ -49,6 +51,23 @@ pub fn get_outputs() -> Result<Vec<OutputInfo>, String> {
 
     result.sort_by_key(|o| o.x);
     Ok(result)
+}
+
+// Sway lists CEA variants of a mode separately (differing only in picture
+// aspect ratio or 59.94 vs 60 Hz). We show and apply refresh rates rounded to
+// whole Hz, so those variants are indistinguishable and only one is kept. The
+// current mode wins its group so the pick list can still match it.
+fn dedup_modes(modes: Vec<Mode>, current: &Mode) -> Vec<Mode> {
+    let key = |m: &Mode| (m.width, m.height, m.refresh_hz());
+    let mut result: Vec<Mode> = Vec::with_capacity(modes.len());
+    for mode in modes {
+        match result.iter_mut().find(|m| key(m) == key(&mode)) {
+            Some(existing) if mode == *current => *existing = mode,
+            Some(_) => {}
+            None => result.push(mode),
+        }
+    }
+    result
 }
 
 // Sway identifies an output either by its connector name (DP-1) or by the
@@ -67,13 +86,12 @@ pub fn apply_config(outputs: &[OutputInfo], mirror: bool) -> Result<(), String> 
 
     for output in outputs {
         let (x, y) = if mirror { (0, 0) } else { (output.x, output.y) };
-        let hz = (output.current_mode.refresh as f64 / 1000.0).round() as i32;
         let cmd = format!(
             "output {} mode {}x{}@{}Hz pos {} {}",
             output_identifier(output),
             output.current_mode.width,
             output.current_mode.height,
-            hz,
+            output.current_mode.refresh_hz(),
             x,
             y
         );
@@ -107,5 +125,47 @@ mod tests {
     fn identifier_falls_back_to_connector_when_edid_empty() {
         let o = test_output("DP-1", 0, 0, 1920, 1080);
         assert_eq!(output_identifier(&o), "DP-1");
+    }
+
+    fn mode(width: i32, height: i32, refresh: i32) -> Mode {
+        Mode {
+            width,
+            height,
+            refresh,
+        }
+    }
+
+    #[test]
+    fn dedup_removes_same_rounded_refresh() {
+        let modes = vec![
+            mode(1920, 1080, 60000),
+            mode(1920, 1080, 60000),
+            mode(1920, 1080, 59940),
+            mode(1920, 1080, 50000),
+            mode(1280, 720, 60000),
+        ];
+        let current = mode(2560, 1440, 59951);
+        assert_eq!(
+            dedup_modes(modes, &current),
+            vec![
+                mode(1920, 1080, 60000),
+                mode(1920, 1080, 50000),
+                mode(1280, 720, 60000),
+            ]
+        );
+    }
+
+    #[test]
+    fn dedup_keeps_current_mode_in_its_group() {
+        let modes = vec![
+            mode(1920, 1080, 60000),
+            mode(1920, 1080, 59940),
+            mode(1280, 720, 60000),
+        ];
+        let current = mode(1920, 1080, 59940);
+        assert_eq!(
+            dedup_modes(modes, &current),
+            vec![mode(1920, 1080, 59940), mode(1280, 720, 60000)]
+        );
     }
 }
